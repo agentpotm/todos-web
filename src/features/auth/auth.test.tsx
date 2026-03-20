@@ -6,9 +6,83 @@ import { RegisterPage } from './RegisterPage'
 import * as client from '../../api/client'
 
 describe('LoginPage', () => {
-  it('renders LoginPage', () => {
+  const apiFetchSpy = vi.spyOn(client, 'apiFetch')
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders email and password fields with a submit button', () => {
     render(<LoginPage />)
-    expect(screen.getByText('LoginPage')).toBeInTheDocument()
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument()
+  })
+
+  it('shows error for invalid credentials (401)', async () => {
+    apiFetchSpy.mockResolvedValueOnce(new Response(null, { status: 401 }))
+    const user = userEvent.setup()
+    render(<LoginPage />)
+
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+    await user.type(screen.getByLabelText(/password/i), 'wrongpassword')
+    await user.click(screen.getByRole('button', { name: /log in/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/invalid email or password/i)
+    })
+  })
+
+  it('shows logged-in state with logout button on successful login', async () => {
+    apiFetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }))
+    const user = userEvent.setup()
+    render(<LoginPage />)
+
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+    await user.type(screen.getByLabelText(/password/i), 'password123')
+    await user.click(screen.getByRole('button', { name: /log in/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/you are logged in/i)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /log out/i })).toBeInTheDocument()
+  })
+
+  it('calls logout endpoint and returns to login form on log out', async () => {
+    apiFetchSpy
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+    const user = userEvent.setup()
+    render(<LoginPage />)
+
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+    await user.type(screen.getByLabelText(/password/i), 'password123')
+    await user.click(screen.getByRole('button', { name: /log in/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /log out/i })).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /log out/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument()
+    })
+    expect(apiFetchSpy).toHaveBeenCalledWith('/auth/logout', { method: 'POST' })
+  })
+
+  it('shows generic error on network failure', async () => {
+    apiFetchSpy.mockRejectedValueOnce(new Error('Network error'))
+    const user = userEvent.setup()
+    render(<LoginPage />)
+
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+    await user.type(screen.getByLabelText(/password/i), 'password123')
+    await user.click(screen.getByRole('button', { name: /log in/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/network error/i)
+    })
   })
 })
 
