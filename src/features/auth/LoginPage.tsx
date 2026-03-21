@@ -1,9 +1,14 @@
 import { useState } from 'react'
 import { apiFetch } from '../../api/client'
 
-type Status = 'idle' | 'submitting' | 'success' | 'logging-out'
+type Status = 'idle' | 'submitting'
 
-export function LoginPage() {
+interface LoginPageProps {
+  onSuccess?: (token: string) => void
+  onRegister?: () => void
+}
+
+export function LoginPage({ onSuccess, onRegister }: LoginPageProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState<Status>('idle')
@@ -33,40 +38,12 @@ export function LoginPage() {
         return
       }
 
-      setStatus('success')
+      const { token } = (await res.json()) as { token: string }
+      onSuccess?.(token)
     } catch {
       setError('Network error. Please check your connection and try again.')
       setStatus('idle')
     }
-  }
-
-  async function handleLogout() {
-    setStatus('logging-out')
-    try {
-      await apiFetch('/auth/logout', { method: 'POST' })
-    } finally {
-      setStatus('idle')
-      setEmail('')
-      setPassword('')
-    }
-  }
-
-  if (status === 'success' || status === 'logging-out') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow max-w-md w-full text-center">
-          <h2 className="text-2xl font-bold text-green-600 mb-2">You are logged in</h2>
-          <p className="text-gray-600 mb-6">Welcome back, {email}!</p>
-          <button
-            onClick={handleLogout}
-            disabled={status === 'logging-out'}
-            className="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300 disabled:opacity-50"
-          >
-            {status === 'logging-out' ? 'Logging out…' : 'Log out'}
-          </button>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -117,6 +94,15 @@ export function LoginPage() {
             {status === 'submitting' ? 'Logging in…' : 'Log in'}
           </button>
         </form>
+
+        {onRegister && (
+          <p className="mt-4 text-center text-sm text-gray-600">
+            No account?{' '}
+            <button onClick={onRegister} className="text-blue-600 hover:underline">
+              Create one
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )
