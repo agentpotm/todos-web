@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { DashboardPage } from './DashboardPage'
@@ -20,29 +20,88 @@ const sampleTodos: Todo[] = [
   { id: '2', title: 'Walk the dog', completed: false, createdAt: '2026-01-02T00:00:00Z' },
 ]
 
+const noop = () => {}
+
 describe('TodoItem', () => {
   it('renders the todo title', () => {
-    render(<TodoItem todo={sampleTodos[0]} onDelete={vi.fn()} />)
+    render(<TodoItem todo={sampleTodos[0]} onDelete={noop} onUpdate={noop} />)
     expect(screen.getByText('Buy milk')).toBeInTheDocument()
   })
 
   it('calls onDelete with the todo id when delete button clicked', async () => {
     const onDelete = vi.fn()
-    render(<TodoItem todo={sampleTodos[0]} onDelete={onDelete} />)
+    render(<TodoItem todo={sampleTodos[0]} onDelete={onDelete} onUpdate={noop} />)
     await userEvent.click(screen.getByRole('button', { name: /delete buy milk/i }))
     expect(onDelete).toHaveBeenCalledWith('1')
+  })
+
+  it('enters edit mode on click', async () => {
+    render(<TodoItem todo={sampleTodos[0]} onDelete={noop} onUpdate={noop} />)
+    await userEvent.click(screen.getByText('Buy milk'))
+    expect(screen.getByRole('textbox', { name: /edit todo/i })).toBeInTheDocument()
+  })
+
+  it('saves on Enter with new non-empty value', async () => {
+    const onUpdate = vi.fn()
+    render(<TodoItem todo={sampleTodos[0]} onDelete={noop} onUpdate={onUpdate} />)
+    await userEvent.click(screen.getByText('Buy milk'))
+    const input = screen.getByRole('textbox', { name: /edit todo/i })
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Buy oat milk')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onUpdate).toHaveBeenCalledWith('1', 'Buy oat milk')
+  })
+
+  it('saves on blur with new non-empty value', async () => {
+    const onUpdate = vi.fn()
+    render(<TodoItem todo={sampleTodos[0]} onDelete={noop} onUpdate={onUpdate} />)
+    await userEvent.click(screen.getByText('Buy milk'))
+    const input = screen.getByRole('textbox', { name: /edit todo/i })
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Buy oat milk')
+    fireEvent.blur(input)
+    expect(onUpdate).toHaveBeenCalledWith('1', 'Buy oat milk')
+  })
+
+  it('cancels on Escape and restores original text', async () => {
+    const onUpdate = vi.fn()
+    render(<TodoItem todo={sampleTodos[0]} onDelete={noop} onUpdate={onUpdate} />)
+    await userEvent.click(screen.getByText('Buy milk'))
+    const input = screen.getByRole('textbox', { name: /edit todo/i })
+    await userEvent.clear(input)
+    await userEvent.type(input, 'changed')
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(onUpdate).not.toHaveBeenCalled()
+    expect(screen.getByText('Buy milk')).toBeInTheDocument()
+  })
+
+  it('does not save when text is empty', async () => {
+    const onUpdate = vi.fn()
+    render(<TodoItem todo={sampleTodos[0]} onDelete={noop} onUpdate={onUpdate} />)
+    await userEvent.click(screen.getByText('Buy milk'))
+    const input = screen.getByRole('textbox', { name: /edit todo/i })
+    await userEvent.clear(input)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onUpdate).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: /edit todo/i })).toBeInTheDocument()
+  })
+
+  it('hides delete button while editing', async () => {
+    render(<TodoItem todo={sampleTodos[0]} onDelete={noop} onUpdate={noop} />)
+    await userEvent.click(screen.getByText('Buy milk'))
+    expect(screen.queryByRole('button', { name: /delete buy milk/i })).not.toBeInTheDocument()
   })
 })
 
 describe('TodoList', () => {
   it('renders all todos', () => {
-    render(<TodoList todos={sampleTodos} onDelete={vi.fn()} />)
+    render(<TodoList todos={sampleTodos} onDelete={noop} onUpdate={noop} />)
     expect(screen.getByText('Buy milk')).toBeInTheDocument()
     expect(screen.getByText('Walk the dog')).toBeInTheDocument()
   })
 
   it('shows empty state when no todos', () => {
-    render(<TodoList todos={[]} onDelete={vi.fn()} />)
+    render(<TodoList todos={[]} onDelete={noop} onUpdate={noop} />)
     expect(screen.getByText(/no todos yet/i)).toBeInTheDocument()
   })
 })
@@ -185,5 +244,32 @@ describe('DashboardPage', () => {
 
     await waitFor(() => expect(screen.getByText('Buy eggs')).toBeInTheDocument())
     expect(input).toHaveValue('')
+  })
+
+  it('updates todo title via PATCH on edit', async () => {
+    const updatedTodo = { ...sampleTodos[0], title: 'Buy oat milk' }
+    mockApiFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
+      .mockResolvedValueOnce({ ok: true, json: async () => updatedTodo })
+
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Buy milk')).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByText('Buy milk'))
+    const input = screen.getByRole('textbox', { name: /edit todo/i })
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Buy oat milk')
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        '/todos/1',
+        expect.objectContaining({ method: 'PATCH' }),
+      )
+      expect(screen.getByText('Buy oat milk')).toBeInTheDocument()
+    })
   })
 })

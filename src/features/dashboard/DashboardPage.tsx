@@ -11,6 +11,18 @@ export function DashboardPage() {
   const [status, setStatus] = useState<Status>('loading')
   const [error, setError] = useState<string | null>(null)
 
+  function handleUpdate(id: string, title: string) {
+    apiFetch(`/todos/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    }).then(async (res) => {
+      if (!res.ok) return
+      const updated = await res.json() as Todo
+      setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)))
+    }).catch(() => {})
+  }
+
   useEffect(() => {
     apiFetch('/todos')
       .then(async (res) => {
@@ -70,7 +82,7 @@ export function DashboardPage() {
           </div>
         )}
 
-        {status === 'success' && <TodoList todos={todos} onDelete={handleDelete} />}
+        {status === 'success' && <TodoList todos={todos} onDelete={handleDelete} onUpdate={handleUpdate} />}
       </main>
     </div>
   )
