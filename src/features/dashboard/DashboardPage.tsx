@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { apiFetch } from '../../api/client'
 import type { Todo } from '../../types'
+import { useWebSocket } from '../sync/useWebSocket'
 import { AddTodoForm } from './AddTodoForm'
 import { TodoList } from './TodoList'
 
@@ -11,19 +12,7 @@ export function DashboardPage() {
   const [status, setStatus] = useState<Status>('loading')
   const [error, setError] = useState<string | null>(null)
 
-  function handleUpdate(id: string, title: string) {
-    apiFetch(`/todos/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title }),
-    }).then(async (res) => {
-      if (!res.ok) return
-      const updated = await res.json() as Todo
-      setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)))
-    }).catch(() => {})
-  }
-
-  useEffect(() => {
+  const fetchTodos = useCallback(() => {
     apiFetch('/todos')
       .then(async (res) => {
         if (!res.ok) {
@@ -41,6 +30,32 @@ export function DashboardPage() {
         setStatus('error')
       })
   }, [])
+
+  useEffect(() => {
+    fetchTodos()
+  }, [fetchTodos])
+
+  useWebSocket({
+    onTodoCreated: (todo) =>
+      setTodos((prev) => (prev.some((t) => t.id === todo.id) ? prev : [...prev, todo])),
+    onTodoUpdated: (todo) =>
+      setTodos((prev) => prev.map((t) => (t.id === todo.id ? todo : t))),
+    onTodoDeleted: (id) =>
+      setTodos((prev) => prev.filter((t) => t.id !== id)),
+    onReconnect: fetchTodos,
+  })
+
+  function handleUpdate(id: string, title: string) {
+    apiFetch(`/todos/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    }).then(async (res) => {
+      if (!res.ok) return
+      const updated = await res.json() as Todo
+      setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)))
+    }).catch(() => {})
+  }
 
   function handleDelete(id: string) {
     setTodos((prev) => prev.filter((t) => t.id !== id))

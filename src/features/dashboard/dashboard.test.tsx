@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { DashboardPage } from './DashboardPage'
@@ -6,9 +6,18 @@ import { AddTodoForm } from './AddTodoForm'
 import { TodoList } from './TodoList'
 import { TodoItem } from './TodoItem'
 import type { Todo } from '../../types'
+import type { UseWebSocketOptions } from '../sync/useWebSocket'
 
 vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
+}))
+
+let capturedWsOptions: UseWebSocketOptions = {}
+vi.mock('../sync/useWebSocket', () => ({
+  useWebSocket: vi.fn((opts: UseWebSocketOptions) => {
+    capturedWsOptions = opts ?? {}
+    return { connected: false }
+  }),
 }))
 
 import { apiFetch } from '../../api/client'
@@ -271,5 +280,54 @@ describe('DashboardPage', () => {
       )
       expect(screen.getByText('Buy oat milk')).toBeInTheDocument()
     })
+  })
+})
+
+describe('DashboardPage real-time updates', () => {
+  beforeEach(() => {
+    mockApiFetch.mockReset()
+  })
+
+  it('adds a todo received via WebSocket without refetch', async () => {
+    const newTodo: Todo = { id: '3', title: 'WS todo', completed: false, createdAt: '2026-01-03T00:00:00Z' }
+    mockApiFetch.mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
+
+    render(<DashboardPage />)
+    await waitFor(() => expect(screen.getByText('Buy milk')).toBeInTheDocument())
+
+    act(() => {
+      capturedWsOptions.onTodoCreated?.(newTodo)
+    })
+
+    expect(screen.getByText('WS todo')).toBeInTheDocument()
+  })
+
+  it('updates a todo received via WebSocket', async () => {
+    const updatedTodo = { ...sampleTodos[0], title: 'Updated via WS' }
+    mockApiFetch.mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
+
+    render(<DashboardPage />)
+    await waitFor(() => expect(screen.getByText('Buy milk')).toBeInTheDocument())
+
+    act(() => {
+      capturedWsOptions.onTodoUpdated?.(updatedTodo)
+    })
+
+    expect(screen.queryByText('Buy milk')).not.toBeInTheDocument()
+    expect(screen.getByText('Updated via WS')).toBeInTheDocument()
+  })
+
+  it('removes a todo deleted via WebSocket', async () => {
+    mockApiFetch.mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
+
+    render(<DashboardPage />)
+    await waitFor(() => expect(screen.getByText('Buy milk')).toBeInTheDocument())
+
+    act(() => {
+      capturedWsOptions.onTodoDeleted?.('1')
+    })
+
+    expect(screen.queryByText('Buy milk')).not.toBeInTheDocument()
+    expect(screen.getByText('Walk the dog')).toBeInTheDocument()
   })
 })
