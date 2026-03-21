@@ -168,9 +168,14 @@ describe('useWebSocket', () => {
   })
 })
 
-describe('sync stubs', () => {
-  it('renders ConnectionIndicator', () => {
-    render(<ConnectionIndicator />)
-    expect(screen.getByText('ConnectionIndicator')).toBeInTheDocument()
+describe('ConnectionIndicator', () => {
+  it('shows alert when disconnected', () => {
+    render(<ConnectionIndicator connected={false} />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('shows nothing when connected', () => {
+    render(<ConnectionIndicator connected={true} />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

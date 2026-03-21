@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiFetch } from '../../api/client'
 import type { Todo } from '../../types'
+import { ConnectionIndicator } from '../sync/ConnectionIndicator'
 import { useWebSocket } from '../sync/useWebSocket'
 import { AddTodoForm } from './AddTodoForm'
 import { TodoList } from './TodoList'
@@ -35,7 +36,7 @@ export function DashboardPage() {
     fetchTodos()
   }, [fetchTodos])
 
-  useWebSocket({
+  const { connected } = useWebSocket({
     onTodoCreated: (todo) =>
       setTodos((prev) => (prev.some((t) => t.id === todo.id) ? prev : [...prev, todo])),
     onTodoUpdated: (todo) =>
@@ -78,6 +79,7 @@ export function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ConnectionIndicator connected={connected} />
       <header className="bg-white shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-gray-900">My Todos</h1>

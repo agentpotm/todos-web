@@ -195,7 +195,8 @@ describe('DashboardPage', () => {
     render(<DashboardPage />)
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('Unauthorized')
+      const alerts = screen.getAllByRole('alert')
+      expect(alerts.some((el) => el.textContent?.includes('Unauthorized'))).toBe(true)
     })
   })
 
