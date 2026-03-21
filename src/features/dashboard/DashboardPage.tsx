@@ -29,6 +29,11 @@ export function DashboardPage() {
       })
   }, [])
 
+  function handleDelete(id: string) {
+    setTodos((prev) => prev.filter((t) => t.id !== id))
+    apiFetch(`/todos/${id}`, { method: 'DELETE' })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
@@ -48,7 +53,7 @@ export function DashboardPage() {
           </div>
         )}
 
-        {status === 'success' && <TodoList todos={todos} />}
+        {status === 'success' && <TodoList todos={todos} onDelete={handleDelete} />}
       </main>
     </div>
   )
