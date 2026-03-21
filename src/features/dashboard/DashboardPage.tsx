@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../../api/client'
 import type { Todo } from '../../types'
+import { AddTodoForm } from './AddTodoForm'
 import { TodoList } from './TodoList'
 
 type Status = 'loading' | 'success' | 'error'
@@ -34,6 +35,20 @@ export function DashboardPage() {
     apiFetch(`/todos/${id}`, { method: 'DELETE' })
   }
 
+  async function handleAdd(title: string) {
+    const res = await apiFetch('/todos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error((body as { message?: string }).message ?? 'Failed to add todo.')
+    }
+    const newTodo = (await res.json()) as Todo
+    setTodos((prev) => [...prev, newTodo])
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
@@ -43,6 +58,8 @@ export function DashboardPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6">
+        <AddTodoForm onAdd={handleAdd} />
+
         {status === 'loading' && (
           <p className="text-gray-500 text-center py-8">Loading todos…</p>
         )}

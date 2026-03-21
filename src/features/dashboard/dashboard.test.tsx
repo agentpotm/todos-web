@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { DashboardPage } from './DashboardPage'
+import { AddTodoForm } from './AddTodoForm'
 import { TodoList } from './TodoList'
 import { TodoItem } from './TodoItem'
 import type { Todo } from '../../types'
@@ -43,6 +44,45 @@ describe('TodoList', () => {
   it('shows empty state when no todos', () => {
     render(<TodoList todos={[]} onDelete={vi.fn()} />)
     expect(screen.getByText(/no todos yet/i)).toBeInTheDocument()
+  })
+})
+
+describe('AddTodoForm', () => {
+  it('renders input and submit button', () => {
+    render(<AddTodoForm onAdd={vi.fn()} />)
+    expect(screen.getByRole('textbox', { name: /new todo title/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add/i })).toBeInTheDocument()
+  })
+
+  it('disables submit when input is empty', () => {
+    render(<AddTodoForm onAdd={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /add/i })).toBeDisabled()
+  })
+
+  it('enables submit when input has text', async () => {
+    const user = userEvent.setup()
+    render(<AddTodoForm onAdd={vi.fn()} />)
+    await user.type(screen.getByRole('textbox', { name: /new todo title/i }), 'Buy eggs')
+    expect(screen.getByRole('button', { name: /add/i })).toBeEnabled()
+  })
+
+  it('calls onAdd with trimmed title and clears input', async () => {
+    const user = userEvent.setup()
+    const onAdd = vi.fn().mockResolvedValue(undefined)
+    render(<AddTodoForm onAdd={onAdd} />)
+    const input = screen.getByRole('textbox', { name: /new todo title/i })
+    await user.type(input, 'Buy eggs')
+    await user.click(screen.getByRole('button', { name: /add/i }))
+    expect(onAdd).toHaveBeenCalledWith('Buy eggs')
+    await waitFor(() => expect(input).toHaveValue(''))
+  })
+
+  it('does not submit whitespace-only input', async () => {
+    const user = userEvent.setup()
+    const onAdd = vi.fn()
+    render(<AddTodoForm onAdd={onAdd} />)
+    await user.type(screen.getByRole('textbox', { name: /new todo title/i }), '   ')
+    expect(screen.getByRole('button', { name: /add/i })).toBeDisabled()
   })
 })
 
@@ -114,5 +154,36 @@ describe('DashboardPage', () => {
 
     expect(screen.queryByText('Buy milk')).not.toBeInTheDocument()
     expect(screen.getByText('Walk the dog')).toBeInTheDocument()
+  })
+
+  it('always shows add-todo input', async () => {
+    mockApiFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => sampleTodos,
+    })
+
+    render(<DashboardPage />)
+
+    expect(screen.getByRole('textbox', { name: /new todo title/i })).toBeInTheDocument()
+  })
+
+  it('adds a new todo after submission', async () => {
+    const user = userEvent.setup()
+    const newTodo: Todo = { id: '3', title: 'Buy eggs', completed: false, createdAt: '2026-01-03T00:00:00Z' }
+
+    mockApiFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
+      .mockResolvedValueOnce({ ok: true, json: async () => newTodo })
+
+    render(<DashboardPage />)
+
+    await waitFor(() => expect(screen.getByText('Buy milk')).toBeInTheDocument())
+
+    const input = screen.getByRole('textbox', { name: /new todo title/i })
+    await user.type(input, 'Buy eggs')
+    await user.click(screen.getByRole('button', { name: /add/i }))
+
+    await waitFor(() => expect(screen.getByText('Buy eggs')).toBeInTheDocument())
+    expect(input).toHaveValue('')
   })
 })
