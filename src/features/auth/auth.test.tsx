@@ -9,7 +9,7 @@ describe('LoginPage', () => {
   const apiFetchSpy = vi.spyOn(client, 'apiFetch')
 
   afterEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   it('renders email and password fields with a submit button', () => {
@@ -33,42 +33,29 @@ describe('LoginPage', () => {
     })
   })
 
-  it('shows logged-in state with logout button on successful login', async () => {
-    apiFetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }))
+  it('calls onSuccess with token on successful login', async () => {
+    apiFetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ token: 'test-jwt-token' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    const onSuccess = vi.fn()
     const user = userEvent.setup()
-    render(<LoginPage />)
+    render(<LoginPage onSuccess={onSuccess} />)
 
     await user.type(screen.getByLabelText(/email/i), 'user@example.com')
     await user.type(screen.getByLabelText(/password/i), 'password123')
     await user.click(screen.getByRole('button', { name: /log in/i }))
 
     await waitFor(() => {
-      expect(screen.getByText(/you are logged in/i)).toBeInTheDocument()
+      expect(onSuccess).toHaveBeenCalledWith('test-jwt-token')
     })
-    expect(screen.getByRole('button', { name: /log out/i })).toBeInTheDocument()
   })
 
-  it('calls logout endpoint and returns to login form on log out', async () => {
-    apiFetchSpy
-      .mockResolvedValueOnce(new Response(null, { status: 200 }))
-      .mockResolvedValueOnce(new Response(null, { status: 200 }))
-    const user = userEvent.setup()
-    render(<LoginPage />)
-
-    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
-    await user.type(screen.getByLabelText(/password/i), 'password123')
-    await user.click(screen.getByRole('button', { name: /log in/i }))
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /log out/i })).toBeInTheDocument()
-    })
-
-    await user.click(screen.getByRole('button', { name: /log out/i }))
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument()
-    })
-    expect(apiFetchSpy).toHaveBeenCalledWith('/auth/logout', { method: 'POST' })
+  it('shows register link when onRegister prop is provided', () => {
+    render(<LoginPage onRegister={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /create one/i })).toBeInTheDocument()
   })
 
   it('shows generic error on network failure', async () => {
@@ -90,7 +77,7 @@ describe('RegisterPage', () => {
   const apiFetchSpy = vi.spyOn(client, 'apiFetch')
 
   afterEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   it('renders email and password fields with a submit button', () => {
@@ -126,17 +113,18 @@ describe('RegisterPage', () => {
     })
   })
 
-  it('shows confirmation message on successful registration', async () => {
+  it('calls onSuccess on successful registration', async () => {
     apiFetchSpy.mockResolvedValueOnce(new Response(null, { status: 201 }))
+    const onSuccess = vi.fn()
     const user = userEvent.setup()
-    render(<RegisterPage />)
+    render(<RegisterPage onSuccess={onSuccess} />)
 
     await user.type(screen.getByLabelText(/email/i), 'new@example.com')
     await user.type(screen.getByLabelText(/password/i), 'password123')
     await user.click(screen.getByRole('button', { name: /create account/i }))
 
     await waitFor(() => {
-      expect(screen.getByText(/registration successful/i)).toBeInTheDocument()
+      expect(onSuccess).toHaveBeenCalledTimes(1)
     })
   })
 

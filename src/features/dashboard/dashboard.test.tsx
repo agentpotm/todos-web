@@ -12,10 +12,10 @@ vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
 }))
 
-let capturedWsOptions: UseWebSocketOptions = {}
+let capturedWsOptions: UseWebSocketOptions = { token: null }
 vi.mock('../sync/useWebSocket', () => ({
   useWebSocket: vi.fn((opts: UseWebSocketOptions) => {
-    capturedWsOptions = opts ?? {}
+    capturedWsOptions = opts ?? { token: null }
     return { connected: false }
   }),
 }))
@@ -165,7 +165,7 @@ describe('DashboardPage', () => {
       json: async () => sampleTodos,
     })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
 
     await waitFor(() => {
       expect(screen.getByText('Buy milk')).toBeInTheDocument()
@@ -179,7 +179,7 @@ describe('DashboardPage', () => {
       json: async () => [],
     })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
 
     await waitFor(() => {
       expect(screen.getByText(/no todos yet/i)).toBeInTheDocument()
@@ -192,7 +192,7 @@ describe('DashboardPage', () => {
       json: async () => ({ message: 'Unauthorized' }),
     })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
 
     await waitFor(() => {
       const alerts = screen.getAllByRole('alert')
@@ -203,7 +203,7 @@ describe('DashboardPage', () => {
   it('shows loading state initially', () => {
     mockApiFetch.mockReturnValueOnce(new Promise(() => {}))
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
 
     expect(screen.getByText(/loading todos/i)).toBeInTheDocument()
   })
@@ -213,7 +213,7 @@ describe('DashboardPage', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
       .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
 
     await waitFor(() => {
       expect(screen.getByText('Buy milk')).toBeInTheDocument()
@@ -231,7 +231,7 @@ describe('DashboardPage', () => {
       json: async () => sampleTodos,
     })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
 
     expect(screen.getByRole('textbox', { name: /new todo title/i })).toBeInTheDocument()
   })
@@ -244,7 +244,7 @@ describe('DashboardPage', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
       .mockResolvedValueOnce({ ok: true, json: async () => newTodo })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
 
     await waitFor(() => expect(screen.getByText('Buy milk')).toBeInTheDocument())
 
@@ -262,7 +262,7 @@ describe('DashboardPage', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
       .mockResolvedValueOnce({ ok: true, json: async () => updatedTodo })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
 
     await waitFor(() => {
       expect(screen.getByText('Buy milk')).toBeInTheDocument()
@@ -293,7 +293,7 @@ describe('DashboardPage real-time updates', () => {
     const newTodo: Todo = { id: '3', title: 'WS todo', completed: false, createdAt: '2026-01-03T00:00:00Z' }
     mockApiFetch.mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
     await waitFor(() => expect(screen.getByText('Buy milk')).toBeInTheDocument())
 
     act(() => {
@@ -307,7 +307,7 @@ describe('DashboardPage real-time updates', () => {
     const updatedTodo = { ...sampleTodos[0], title: 'Updated via WS' }
     mockApiFetch.mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
     await waitFor(() => expect(screen.getByText('Buy milk')).toBeInTheDocument())
 
     act(() => {
@@ -321,7 +321,7 @@ describe('DashboardPage real-time updates', () => {
   it('removes a todo deleted via WebSocket', async () => {
     mockApiFetch.mockResolvedValueOnce({ ok: true, json: async () => sampleTodos })
 
-    render(<DashboardPage />)
+    render(<DashboardPage token="test-token" />)
     await waitFor(() => expect(screen.getByText('Buy milk')).toBeInTheDocument())
 
     act(() => {

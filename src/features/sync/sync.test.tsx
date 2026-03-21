@@ -40,54 +40,54 @@ const sampleTodo: Todo = { id: '1', title: 'Test', completed: false, createdAt: 
 
 describe('useWebSocket', () => {
   it('starts disconnected', () => {
-    const { result } = renderHook(() => useWebSocket())
+    const { result } = renderHook(() => useWebSocket({ token: 'test-token' }))
     expect(result.current.connected).toBe(false)
   })
 
   it('becomes connected on open', () => {
-    const { result } = renderHook(() => useWebSocket())
+    const { result } = renderHook(() => useWebSocket({ token: 'test-token' }))
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
     })
     expect(result.current.connected).toBe(true)
   })
 
-  it('calls onTodoCreated when todo.created message received', () => {
+  it('calls onTodoCreated when todo:created message received', () => {
     const onTodoCreated = vi.fn()
-    renderHook(() => useWebSocket({ onTodoCreated }))
+    renderHook(() => useWebSocket({ token: 'test-token', onTodoCreated }))
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
       mockInstances[0].onmessage?.(
         new MessageEvent('message', {
-          data: JSON.stringify({ type: 'todo.created', todo: sampleTodo }),
+          data: JSON.stringify({ type: 'todo:created', payload: sampleTodo }),
         }),
       )
     })
     expect(onTodoCreated).toHaveBeenCalledWith(sampleTodo)
   })
 
-  it('calls onTodoUpdated when todo.updated message received', () => {
+  it('calls onTodoUpdated when todo:updated message received', () => {
     const onTodoUpdated = vi.fn()
-    renderHook(() => useWebSocket({ onTodoUpdated }))
+    renderHook(() => useWebSocket({ token: 'test-token', onTodoUpdated }))
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
       mockInstances[0].onmessage?.(
         new MessageEvent('message', {
-          data: JSON.stringify({ type: 'todo.updated', todo: sampleTodo }),
+          data: JSON.stringify({ type: 'todo:updated', payload: sampleTodo }),
         }),
       )
     })
     expect(onTodoUpdated).toHaveBeenCalledWith(sampleTodo)
   })
 
-  it('calls onTodoDeleted when todo.deleted message received', () => {
+  it('calls onTodoDeleted when todo:deleted message received', () => {
     const onTodoDeleted = vi.fn()
-    renderHook(() => useWebSocket({ onTodoDeleted }))
+    renderHook(() => useWebSocket({ token: 'test-token', onTodoDeleted }))
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
       mockInstances[0].onmessage?.(
         new MessageEvent('message', {
-          data: JSON.stringify({ type: 'todo.deleted', id: '1' }),
+          data: JSON.stringify({ type: 'todo:deleted', payload: { id: '1' } }),
         }),
       )
     })
@@ -95,7 +95,7 @@ describe('useWebSocket', () => {
   })
 
   it('becomes disconnected on close', () => {
-    const { result } = renderHook(() => useWebSocket())
+    const { result } = renderHook(() => useWebSocket({ token: 'test-token' }))
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
     })
@@ -107,7 +107,7 @@ describe('useWebSocket', () => {
   })
 
   it('reconnects after disconnect with exponential backoff', () => {
-    renderHook(() => useWebSocket())
+    renderHook(() => useWebSocket({ token: 'test-token' }))
     expect(mockInstances).toHaveLength(1)
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
@@ -122,7 +122,7 @@ describe('useWebSocket', () => {
 
   it('calls onReconnect after successful reconnection', () => {
     const onReconnect = vi.fn()
-    renderHook(() => useWebSocket({ onReconnect }))
+    renderHook(() => useWebSocket({ token: 'test-token', onReconnect }))
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
       mockInstances[0].close()
@@ -138,7 +138,7 @@ describe('useWebSocket', () => {
 
   it('does not call onReconnect on initial connection', () => {
     const onReconnect = vi.fn()
-    renderHook(() => useWebSocket({ onReconnect }))
+    renderHook(() => useWebSocket({ token: 'test-token', onReconnect }))
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
     })
@@ -146,7 +146,7 @@ describe('useWebSocket', () => {
   })
 
   it('does not reconnect after unmount', () => {
-    const { unmount } = renderHook(() => useWebSocket())
+    const { unmount } = renderHook(() => useWebSocket({ token: 'test-token' }))
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
     })
@@ -159,7 +159,7 @@ describe('useWebSocket', () => {
 
   it('ignores malformed messages', () => {
     const onTodoCreated = vi.fn()
-    renderHook(() => useWebSocket({ onTodoCreated }))
+    renderHook(() => useWebSocket({ token: 'test-token', onTodoCreated }))
     act(() => {
       mockInstances[0].onopen?.(new Event('open'))
       mockInstances[0].onmessage?.(new MessageEvent('message', { data: 'not-json' }))

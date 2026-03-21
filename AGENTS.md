@@ -59,6 +59,12 @@ todos-web/
 - No global state for server data — fetch on mount, update via WS events
 - TypeScript strict mode — no `any`
 
+## Testing conventions
+
+- **Always use `vi.resetAllMocks()` in `afterEach`**, not `vi.clearAllMocks()`. `clearAllMocks` only resets call history; it does NOT clear `mockResolvedValueOnce`/`mockRejectedValueOnce` queues. Unconsumed once-mocks bleed into the next test, causing non-deterministic failures that depend on test execution order.
+- Tests must pass when run in isolation AND in sequence: `npm test`
+- Write tests against the component's actual prop API, not against spec intent. If the component doesn't yet match the spec, either implement the spec or write a failing test and note it — do not push tests that were never green.
+
 ## Real-Time Pattern
 
 ```ts

@@ -1,9 +1,14 @@
 import { useState } from 'react'
 import { apiFetch } from '../../api/client'
 
-type Status = 'idle' | 'submitting' | 'success'
+type Status = 'idle' | 'submitting'
 
-export function RegisterPage() {
+interface RegisterPageProps {
+  onSuccess?: () => void
+  onLogin?: () => void
+}
+
+export function RegisterPage({ onSuccess, onLogin }: RegisterPageProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState<Status>('idle')
@@ -39,22 +44,11 @@ export function RegisterPage() {
         return
       }
 
-      setStatus('success')
+      onSuccess?.()
     } catch {
       setError('Network error. Please check your connection and try again.')
       setStatus('idle')
     }
-  }
-
-  if (status === 'success') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow max-w-md w-full text-center">
-          <h2 className="text-2xl font-bold text-green-600 mb-2">Registration successful!</h2>
-          <p className="text-gray-600">Your account has been created. You can now log in.</p>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -106,6 +100,15 @@ export function RegisterPage() {
             {status === 'submitting' ? 'Creating account…' : 'Create account'}
           </button>
         </form>
+
+        {onLogin && (
+          <p className="mt-4 text-center text-sm text-gray-600">
+            Already have an account?{' '}
+            <button onClick={onLogin} className="text-blue-600 hover:underline">
+              Log in
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )

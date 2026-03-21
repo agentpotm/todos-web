@@ -8,7 +8,12 @@ import { TodoList } from './TodoList'
 
 type Status = 'loading' | 'success' | 'error'
 
-export function DashboardPage() {
+interface DashboardPageProps {
+  token: string
+  onLogout?: () => void
+}
+
+export function DashboardPage({ token, onLogout }: DashboardPageProps) {
   const [todos, setTodos] = useState<Todo[]>([])
   const [status, setStatus] = useState<Status>('loading')
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +42,7 @@ export function DashboardPage() {
   }, [fetchTodos])
 
   const { connected } = useWebSocket({
+    token,
     onTodoCreated: (todo) =>
       setTodos((prev) => (prev.some((t) => t.id === todo.id) ? prev : [...prev, todo])),
     onTodoUpdated: (todo) =>
@@ -81,8 +87,16 @@ export function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <ConnectionIndicator connected={connected} />
       <header className="bg-white shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-4">
+        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">My Todos</h1>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Log out
+            </button>
+          )}
         </div>
       </header>
 
